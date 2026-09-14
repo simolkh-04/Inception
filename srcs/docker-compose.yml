@@ -1,0 +1,73 @@
+services:
+  mariadb:
+    build:
+      context: ./requirements/mariadb
+    container_name: mariadb
+
+    env_file:
+      - .env
+
+    secrets:
+      - db_root_password
+      - db_password
+
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    
+  wordpress:
+    build:
+      context: ./requirements/wordpress
+    container_name: wordpress
+
+    env_file:
+      - .env
+
+    secrets:
+      - db_password
+      - wp_admin_password
+      - wp_user_password
+
+    volumes:
+      - wordpress_data:/var/www/html
+
+    depends_on:
+      - mariadb
+
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -x php-fpm8.2 >/dev/null 2>&1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  nginx:
+    build:
+      context: ./requirements/nginx
+    container_name: nginx
+
+    ports:
+      - "443:443"
+
+    volumes:
+      - wordpress_data:/var/www/html:ro
+
+    depends_on:
+      wordpress:
+        condition: service_healthy
+
+volumes:
+  mariadb_data:
+  wordpress_data:
+
+secrets:
+  db_root_password:
+    file: ../secrets/db_root_password.txt
+
+  db_password:
+    file: ../secrets/db_password.txt
+  
+  wp_admin_password:
+    file: ../secrets/wp_admin_password.txt
+  
+  wp_user_password:
+    file: ../secrets/wp_user_password.txt
