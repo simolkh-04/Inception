@@ -40,6 +40,9 @@ if ( ! defined( 'ABSPATH' ) ) {
     define( 'ABSPATH', __DIR__ . '/' );
 }
 
+define('WP_REDIS_HOST', 'redis');
+define('WP_REDIS_PORT', 6379);
+
 require_once ABSPATH . 'wp-settings.php';
 
 EOF

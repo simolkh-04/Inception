@@ -13,7 +13,10 @@ services:
 
     volumes:
       - mariadb_data:/var/lib/mysql
-    
+
+    networks:
+      - inception
+
   wordpress:
     build:
       context: ./requirements/wordpress
@@ -40,6 +43,63 @@ services:
       retries: 10
       start_period: 10s
 
+    networks:
+      - inception
+
+  redis:
+    build:
+      context: ./requirements/bonus/redis
+    container_name: redis
+
+    networks:
+      - inception
+  
+  ftp:
+    build:
+      context: ./requirements/bonus/ftp
+    container_name: ftp
+    volumes:
+      - wordpress_data:/var/www/html
+    ports:
+      - "21:21"
+      - "21100-21110:21100-21110"
+    depends_on:
+      - wordpress
+    networks:
+      - inception
+
+  website:
+    build:
+      context: ./requirements/bonus/website
+    container_name: website
+    ports:
+      - "8080:80"
+    networks:
+      - inception
+  
+  adminer:
+    build:
+      context: ./requirements/bonus/adminer
+    container_name: adminer
+    ports:
+      - "8081:8080"
+    depends_on:
+      - mariadb
+    networks:
+      - inception
+  
+  portainer:
+    image: portainer:img
+    build: ./requirements/bonus/portainer
+    container_name: portainer
+    restart: on-failure
+    networks : 
+      - inception
+    ports:
+    - "9443:9443"
+    volumes:
+    - /var/run/docker.sock:/var/run/docker.sock
+
   nginx:
     build:
       context: ./requirements/nginx
@@ -55,9 +115,16 @@ services:
       wordpress:
         condition: service_healthy
 
+    networks:
+      - inception
+
 volumes:
   mariadb_data:
   wordpress_data:
+
+networks:
+  inception:
+    driver: bridge
 
 secrets:
   db_root_password:
@@ -65,9 +132,9 @@ secrets:
 
   db_password:
     file: ../secrets/db_password.txt
-  
+
   wp_admin_password:
     file: ../secrets/wp_admin_password.txt
-  
+
   wp_user_password:
     file: ../secrets/wp_user_password.txt
