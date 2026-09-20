@@ -50,3 +50,13 @@ wait "$pid"
 echo "Starting MariaDB..."
 
 exec mariadbd --user=mysql --console
+
+
+
+
+
+
+
+
+
+

@@ -2,6 +2,8 @@ services:
   mariadb:
     build:
       context: ./requirements/mariadb
+    image: mariadb:img
+    restart: always
     container_name: mariadb
 
     env_file:
@@ -20,6 +22,8 @@ services:
   wordpress:
     build:
       context: ./requirements/wordpress
+    image: wordpress:img
+    restart: always
     container_name: wordpress
 
     env_file:
@@ -49,6 +53,8 @@ services:
   redis:
     build:
       context: ./requirements/bonus/redis
+    image: redis:img
+    restart: always
     container_name: redis
 
     networks:
@@ -57,6 +63,8 @@ services:
   ftp:
     build:
       context: ./requirements/bonus/ftp
+    image: ftp:img
+    restart: always
     container_name: ftp
     volumes:
       - wordpress_data:/var/www/html
@@ -67,10 +75,16 @@ services:
       - wordpress
     networks:
       - inception
+    secrets:
+      - ftp_password
+    env_file:
+      - .env
 
   website:
     build:
       context: ./requirements/bonus/website
+    image: website:img
+    restart: always
     container_name: website
     ports:
       - "8080:80"
@@ -80,6 +94,8 @@ services:
   adminer:
     build:
       context: ./requirements/bonus/adminer
+    image: adminer:img
+    restart: always
     container_name: adminer
     ports:
       - "8081:8080"
@@ -92,7 +108,7 @@ services:
     image: portainer:img
     build: ./requirements/bonus/portainer
     container_name: portainer
-    restart: on-failure
+    restart: always
     networks : 
       - inception
     ports:
@@ -103,6 +119,8 @@ services:
   nginx:
     build:
       context: ./requirements/nginx
+    image: nginx:img
+    restart: always
     container_name: nginx
 
     ports:
@@ -118,9 +136,22 @@ services:
     networks:
       - inception
 
+
 volumes:
   mariadb_data:
+    name: mariadb_data
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/mlakhal/data/mariadb
   wordpress_data:
+    name: wordpress_data
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/mlakhal/data/wordpress
 
 networks:
   inception:
@@ -138,3 +169,5 @@ secrets:
 
   wp_user_password:
     file: ../secrets/wp_user_password.txt
+  ftp_password:
+    file: ../secrets/ftp_password.txt
