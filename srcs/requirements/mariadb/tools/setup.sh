@@ -1,62 +1,35 @@
 #!/bin/bash
-
 set -e
 
-MYSQL_ROOT_PASSWORD=$(cat /run/secrets/db_root_password)
-MYSQL_PASSWORD=$(cat /run/secrets/db_password)
+DB_PASSWORD=$(cat /run/secrets/db_password)
+DB_ROOT_PASSWORD=$(cat /run/secrets/db_root_password)
 
 mkdir -p /run/mysqld
-chown mysql:mysql /run/mysqld
+chown -R mysql:mysql /run/mysqld /var/lib/mysql
 
-mariadbd --user=mysql --skip-networking &
-pid="$!"
+# 1. Hna zedt l-initialisation dyal l-base de données ila kant khawya
+if [ ! -d "/var/lib/mysql/mysql" ]; then
+    echo "Installing MariaDB system tables..."
+    mysql_install_db --user=mysql --datadir=/var/lib/mysql > /dev/null
+fi
 
-until mariadb-admin ping --silent; do
+mysqld --user=mysql --skip-networking &
+MYSQLD_PID=$!
+
+while ! mysqladmin ping --socket=/run/mysqld/mysqld.sock --silent 2>/dev/null; do
     sleep 1
 done
 
-echo "MariaDB is ready for initialization."
-
-if mariadb -u root -p"${MYSQL_ROOT_PASSWORD}" -e "SELECT 1;" > /dev/null 2>&1; then
-    echo "Root password already configured."
-else
-    echo "Configuring root password..."
-
-    mariadb -u root <<EOF
-ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}';
-EOF
-fi
-
-echo "Creating database and user..."
-
-mariadb -u root -p"${MYSQL_ROOT_PASSWORD}" <<EOF
-CREATE DATABASE IF NOT EXISTS \`${MYSQL_DATABASE}\`;
-
-CREATE USER IF NOT EXISTS '${MYSQL_USER}'@'%' IDENTIFIED BY '${MYSQL_PASSWORD}';
-
-ALTER USER '${MYSQL_USER}'@'%' IDENTIFIED BY '${MYSQL_PASSWORD}';
-
-GRANT ALL PRIVILEGES ON \`${MYSQL_DATABASE}\`.* TO '${MYSQL_USER}'@'%';
-
+mysql --socket=/run/mysqld/mysqld.sock << SQL
 FLUSH PRIVILEGES;
-EOF
+CREATE DATABASE IF NOT EXISTS \`${MYSQL_DATABASE}\`;
+CREATE USER IF NOT EXISTS '${MYSQL_USER}'@'%' IDENTIFIED BY '${DB_PASSWORD}';
+GRANT ALL PRIVILEGES ON \`${MYSQL_DATABASE}\`.* TO '${MYSQL_USER}'@'%';
+ALTER USER 'root'@'localhost' IDENTIFIED BY '${DB_ROOT_PASSWORD}';
+FLUSH PRIVILEGES;
+SQL
 
-echo "Database and user configured."
+mysqladmin shutdown --socket=/run/mysqld/mysqld.sock -u root -p"${DB_ROOT_PASSWORD}"
+wait $MYSQLD_PID
 
-mysqladmin -u root -p"${MYSQL_ROOT_PASSWORD}" shutdown
-
-wait "$pid"
-
-echo "Starting MariaDB..."
-
-exec mariadbd --user=mysql --console
-
-
-
-
-
-
-
-
-
-
+exec mysqld --user=mysql
